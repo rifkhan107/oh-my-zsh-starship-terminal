@@ -61,8 +61,13 @@ exec zsh
 `install.sh` is Zsh/Oh My Zsh specific and doesn't apply to native Windows
 PowerShell. `install.ps1` sets up the closest equivalents instead:
 
-- [Starship](https://starship.rs/) prompt, installed via `winget`, using the
-  same custom `starship.toml` (with the same bundled offline fallback).
+- [Starship](https://starship.rs/) prompt, using the same custom
+  `starship.toml` (with the same bundled offline fallback). Tries `winget`
+  in per-user scope first; if that's unavailable or needs admin rights you
+  don't have (no UAC password, etc.), it falls back to downloading the
+  official binary directly from GitHub releases into
+  `%LOCALAPPDATA%\Programs\starship` and adding that folder to your **user**
+  PATH — no admin rights or UAC prompt required either way.
 - [PSReadLine](https://learn.microsoft.com/powershell/module/psreadline/)
   configured with predictive IntelliSense (history-based autosuggestions —
   the PowerShell analogue of `zsh-autosuggestions`) and colorized tokens
@@ -80,7 +85,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 Every step is idempotent and backs up an existing `starship.toml` before
-overwriting it. Requires `winget` (ships with modern Windows 10/11; install
-"App Installer" from the Microsoft Store if missing) and PowerShell 5.1+.
+overwriting it. Requires PowerShell 5.1+. `winget` is used opportunistically
+if present, but nothing in this script requires it or admin rights.
 
 Restart your terminal, or run `. $PROFILE`, afterwards.

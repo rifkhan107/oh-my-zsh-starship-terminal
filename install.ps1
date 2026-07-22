@@ -8,7 +8,11 @@
 .DESCRIPTION
     There is no Oh My Zsh on native Windows PowerShell, so this script sets up
     the closest equivalents:
-      - Starship prompt (same as install.sh)
+      - Starship prompt (same as install.sh). Tries winget in per-user scope
+        first; if that's unavailable or needs admin rights you don't have, it
+        falls back to downloading the official binary straight from GitHub
+        releases into %LOCALAPPDATA%\Programs\starship and adds that to your
+        *user* PATH — no admin/UAC required either way.
       - PSReadLine predictive IntelliSense (autosuggestions) + colorized
         tokens (syntax highlighting) — PowerShell's built-in analogues of
         zsh-autosuggestions and zsh-syntax-highlighting
@@ -43,6 +47,17 @@ function Write-Ok   { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Gree
 function Write-Warn { param($msg) Write-Host "  [!] $msg" -ForegroundColor Yellow }
 function Write-Err  { param($msg) Write-Host "  [X] $msg" -ForegroundColor Red }
 
+function Sync-Path {
+    # Pull the latest Machine + User PATH into this process, so a binary
+    # installed by winget/manually in this run is visible without reopening
+    # the terminal.
+    $paths = @(
+        [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+        [Environment]::GetEnvironmentVariable('Path', 'User')
+    ) | Where-Object { $_ }
+    $env:Path = ($paths -join ';')
+}
+
 function Install-Starship {
     if (Get-Command starship -ErrorAction SilentlyContinue) {
         $version = (starship --version | Select-Object -First 1)
@@ -50,14 +65,74 @@ function Install-Starship {
         return
     }
 
-    if ($SkipWinget -or -not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Err "winget not found. Install 'App Installer' from the Microsoft Store, or install Starship manually: https://starship.rs/install.sh"
-        throw "winget unavailable"
+    if (-not $SkipWinget -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Log "Installing Starship via winget (per-user scope, no admin required)"
+        winget install --id Starship.Starship -e --source winget --scope user --accept-package-agreements --accept-source-agreements
+        Sync-Path
+
+        if (Get-Command starship -ErrorAction SilentlyContinue) {
+            Write-Ok "Starship installed via winget"
+            return
+        }
+        Write-Warn "winget install did not complete (exit code $LASTEXITCODE) — it likely requires admin rights on this machine."
+    }
+    else {
+        Write-Warn "winget not available, skipping straight to per-user install"
     }
 
-    Write-Log "Installing Starship via winget"
-    winget install --id Starship.Starship -e --source winget --accept-package-agreements --accept-source-agreements
-    Write-Ok "Starship installed"
+    Install-StarshipManual
+}
+
+function Install-StarshipManual {
+    # Downloads the official prebuilt binary directly and puts it on the
+    # *user* PATH — no admin rights, no UAC prompt, no MSI.
+    if (Get-Command starship -ErrorAction SilentlyContinue) {
+        return
+    }
+
+    Write-Log "Installing Starship for the current user only (no admin required)"
+
+    $installDir = Join-Path $env:LOCALAPPDATA "Programs\starship"
+    $exePath = Join-Path $installDir "starship.exe"
+
+    if (Test-Path $exePath) {
+        Write-Ok "Starship binary already present at $exePath"
+    }
+    else {
+        New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            'ARM64'  { 'aarch64' }
+            'x86'    { 'i686' }
+            default  { 'x86_64' }
+        }
+        $zipUrl = "https://github.com/starship/starship/releases/latest/download/starship-$arch-pc-windows-msvc.zip"
+        $zipPath = Join-Path $env:TEMP "starship-$arch.zip"
+
+        Write-Log "Downloading $zipUrl"
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+        Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
+        Remove-Item $zipPath -ErrorAction SilentlyContinue
+
+        if (-not (Test-Path $exePath)) {
+            throw "starship.exe not found in $installDir after extracting $zipUrl"
+        }
+        Write-Ok "Downloaded Starship to $installDir"
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $userPathEntries = @(); if ($userPath) { $userPathEntries = $userPath -split ';' }
+    if ($userPathEntries -notcontains $installDir) {
+        $newUserPath = if ($userPath) { "$($userPath.TrimEnd(';'));$installDir" } else { $installDir }
+        [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
+        Write-Ok "Added $installDir to your user PATH"
+    }
+
+    if (($env:Path -split ';') -notcontains $installDir) {
+        $env:Path += ";$installDir"
+    }
+
+    Write-Ok "Starship installed for current user at $exePath"
 }
 
 function Update-PSReadLine {
