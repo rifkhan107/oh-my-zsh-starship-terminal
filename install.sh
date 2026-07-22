@@ -155,6 +155,22 @@ configure_plugins() {
   fi
 }
 
+configure_ls_colors() {
+  [ -f "$ZSHRC" ] || { warn "$ZSHRC not found, skipping LS_COLORS configuration"; return; }
+
+  # Default LS_COLORS renders world-writable dirs (chmod 777) as blue-on-green
+  # (ow/tw codes), which is hard to read on dark themes. Override to plain bold blue.
+  if grep -qF 'LS_COLORS="$LS_COLORS:ow=01;34:tw=01;34"' "$ZSHRC"; then
+    ok "LS_COLORS override already present in .zshrc"
+    return
+  fi
+  {
+    printf '\n# Readable colors for world-writable directories (default ow/tw is blue-on-green)\n'
+    printf 'export LS_COLORS="$LS_COLORS:ow=01;34:tw=01;34"\n'
+  } >> "$ZSHRC"
+  ok "Added LS_COLORS override to .zshrc"
+}
+
 install_starship() {
   if command -v starship >/dev/null 2>&1; then
     ok "Starship already installed ($(starship --version | head -n1))"
@@ -249,6 +265,7 @@ main() {
     install_plugin "$plugin"
   done
   configure_plugins
+  configure_ls_colors
 
   install_starship
   configure_starship_config

@@ -15,7 +15,9 @@ syntax highlighting, and the Starship prompt using a custom config.
    in `~/.zshrc`.
 5. Downloads a custom `starship.toml` to `~/.config/starship.toml` from:
    `https://gist.githubusercontent.com/rifkhan107/a49706cb2e69ac0e467a585278a23d99/raw/666e5238c043a6eba8406715b36bbf70ddd9f912/ubuntu-starship.toml`
-6. Sets `zsh` as the default login shell.
+6. Overrides `LS_COLORS` so world-writable directories (`chmod 777`) render as
+   plain bold blue instead of the default hard-to-read blue-on-green.
+7. Sets `zsh` as the default login shell.
 
 Every step is idempotent (safe to re-run) and backs up existing `.zshrc` /
 `starship.toml` files before overwriting them.
