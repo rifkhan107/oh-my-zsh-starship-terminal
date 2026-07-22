@@ -55,3 +55,27 @@ Restart your terminal, or run:
 ```bash
 exec zsh
 ```
+
+## Windows (PowerShell)
+
+`install.sh` is Zsh/Oh My Zsh specific and doesn't apply to native Windows
+PowerShell. `install.ps1` sets up the closest equivalents instead:
+
+- [Starship](https://starship.rs/) prompt, installed via `winget`, using the
+  same custom `starship.toml` (with the same bundled offline fallback).
+- [PSReadLine](https://learn.microsoft.com/powershell/module/psreadline/)
+  configured with predictive IntelliSense (history-based autosuggestions —
+  the PowerShell analogue of `zsh-autosuggestions`) and colorized tokens
+  (the analogue of `zsh-syntax-highlighting`).
+
+```powershell
+git clone <this-repo>
+cd oh-my-zsh-starship-terminal
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Every step is idempotent and backs up an existing `starship.toml` before
+overwriting it. Requires `winget` (ships with modern Windows 10/11; install
+"App Installer" from the Microsoft Store if missing) and PowerShell 5.1+.
+
+Restart your terminal, or run `. $PROFILE`, afterwards.
