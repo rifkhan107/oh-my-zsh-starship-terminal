@@ -2,7 +2,8 @@
 <#
 .SYNOPSIS
     Windows PowerShell equivalent of install.sh: Starship prompt + PSReadLine
-    (autosuggestions / syntax highlighting) with your custom config.
+    (autosuggestions / syntax highlighting) + Terminal-Icons, with your
+    custom config.
 
 .DESCRIPTION
     There is no Oh My Zsh on native Windows PowerShell, so this script sets up
@@ -11,6 +12,9 @@
       - PSReadLine predictive IntelliSense (autosuggestions) + colorized
         tokens (syntax highlighting) — PowerShell's built-in analogues of
         zsh-autosuggestions and zsh-syntax-highlighting
+      - Terminal-Icons for file/folder icons, with the "windows" well-known
+        folder overridden to use the nf-custom-windows Nerd Font glyph
+        instead of the default nf-fa-windows
 
 .USAGE
     powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -29,6 +33,10 @@ $StarshipConfigUrl = "https://gist.githubusercontent.com/rifkhan107/a49706cb2e69
 $BundledStarshipConfig = Join-Path $PSScriptRoot "configs\starship.toml"
 $StarshipConfigDir = Join-Path $HOME ".config"
 $StarshipConfigFile = Join-Path $StarshipConfigDir "starship.toml"
+
+$TerminalIconsCustomThemeName = "devblackops-nf-custom-windows"
+$TerminalIconsCustomThemeDir = Join-Path $HOME ".config\terminal-icons"
+$TerminalIconsCustomThemeFile = Join-Path $TerminalIconsCustomThemeDir "$TerminalIconsCustomThemeName.psd1"
 
 function Write-Log  { param($msg) Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok   { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
@@ -63,6 +71,74 @@ function Update-PSReadLine {
     Write-Log "Installing/updating PSReadLine (adds predictive autosuggestions)"
     Install-Module -Name PSReadLine -Scope CurrentUser -Force -SkipPublisherCheck -AllowClobber -MinimumVersion 2.2.0
     Write-Ok "PSReadLine updated"
+}
+
+function Install-TerminalIcons {
+    if (Get-Module -ListAvailable -Name Terminal-Icons) {
+        Write-Ok "Terminal-Icons already installed"
+        return
+    }
+
+    Write-Log "Installing Terminal-Icons (file/folder icons in the terminal)"
+    Install-Module -Name Terminal-Icons -Repository PSGallery -Scope CurrentUser -Force -SkipPublisherCheck
+    Write-Ok "Terminal-Icons installed"
+}
+
+function Set-TerminalIconsWindowsGlyph {
+    # Terminal-Icons' default theme maps the "windows" well-known folder to
+    # nf-fa-windows. Override it to nf-custom-windows (U+E62A), which is the
+    # glyph meant for this in current Nerd Fonts (v3+).
+    $module = Get-Module -ListAvailable -Name Terminal-Icons | Sort-Object Version -Descending | Select-Object -First 1
+    if (-not $module) {
+        Write-Warn "Terminal-Icons module not found, skipping Windows icon override"
+        return
+    }
+
+    $defaultTheme = Join-Path $module.ModuleBase "Data\iconThemes\devblackops.psd1"
+    if (-not (Test-Path $defaultTheme)) {
+        Write-Warn "Could not find default Terminal-Icons theme at $defaultTheme, skipping Windows icon override"
+        return
+    }
+
+    if (-not (Test-Path $TerminalIconsCustomThemeDir)) {
+        New-Item -ItemType Directory -Path $TerminalIconsCustomThemeDir -Force | Out-Null
+    }
+
+    Write-Log "Building custom icon theme (Windows folder -> nf-custom-windows)"
+    $content = Get-Content $defaultTheme -Raw
+    $content = $content -replace "(?<=Name\s*=\s*)'devblackops'", "'$TerminalIconsCustomThemeName'"
+    $content = $content -replace "(?<=windows\s*=\s*)'nf-fa-windows'", "'nf-custom-windows'"
+
+    if ($content -notmatch "windows\s*=\s*'nf-custom-windows'") {
+        Write-Warn "Expected 'windows = ''nf-fa-windows''' entry not found in the installed theme (Terminal-Icons version may have changed layout)."
+        Write-Warn "Copying the default theme through unmodified; the Windows folder icon override was NOT applied."
+    }
+
+    Set-Content -Path $TerminalIconsCustomThemeFile -Value $content
+
+    # -Force makes this safe to re-run: it registers/overwrites the theme each time.
+    Add-TerminalIconsIconTheme -Path $TerminalIconsCustomThemeFile -Force
+    Write-Ok "Registered custom icon theme '$TerminalIconsCustomThemeName'"
+}
+
+function Set-TerminalIconsProfileConfig {
+    $marker = "# --- oh-my-zsh-starship-terminal: Terminal-Icons config ---"
+    $content = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
+
+    if ($content -and $content.Contains($marker)) {
+        Write-Ok "Terminal-Icons config already present in profile"
+        return
+    }
+
+    $block = @"
+
+$marker
+Import-Module -Name Terminal-Icons
+Set-TerminalIconsTheme -IconTheme '$TerminalIconsCustomThemeName'
+"@
+
+    Add-Content -Path $PROFILE -Value $block
+    Write-Ok "Added Terminal-Icons config to profile"
 }
 
 function Initialize-Profile {
@@ -154,12 +230,15 @@ function Set-StarshipConfig {
 # Main
 # ---------------------------------------------------------------------------
 
-Write-Log "Starting Starship + PSReadLine setup for PowerShell"
+Write-Log "Starting Starship + PSReadLine + Terminal-Icons setup for PowerShell"
 
 Install-Starship
 Update-PSReadLine
+Install-TerminalIcons
+Set-TerminalIconsWindowsGlyph
 Initialize-Profile
 Set-PSReadLineConfig
+Set-TerminalIconsProfileConfig
 Set-StarshipInit
 Set-StarshipConfig
 

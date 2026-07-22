@@ -67,6 +67,11 @@ PowerShell. `install.ps1` sets up the closest equivalents instead:
   configured with predictive IntelliSense (history-based autosuggestions —
   the PowerShell analogue of `zsh-autosuggestions`) and colorized tokens
   (the analogue of `zsh-syntax-highlighting`).
+- [Terminal-Icons](https://github.com/devblackops/Terminal-Icons) for file
+  and folder icons in `Get-ChildItem` output. The `windows` well-known folder
+  icon is overridden from the default `nf-fa-windows` to `nf-custom-windows`
+  (`U+E62A`) via a generated custom icon theme — the vendor module files are
+  never modified directly.
 
 ```powershell
 git clone <this-repo>
