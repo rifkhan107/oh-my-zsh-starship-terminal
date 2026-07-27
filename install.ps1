@@ -228,7 +228,15 @@ function Set-PSReadLineConfig {
     $content = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
 
     if ($content -and $content.Contains($marker)) {
-        Write-Ok "PSReadLine config already present in profile"
+        # Upgrade older installs that used the heavier ListView renderer.
+        if ($content -match 'PredictionViewStyle\s+ListView') {
+            $content = $content -replace 'PredictionViewStyle\s+ListView', 'PredictionViewStyle InlineView'
+            Set-Content -Path $PROFILE -Value $content -NoNewline
+            Write-Ok "Upgraded PSReadLine config in profile (ListView -> InlineView)"
+        }
+        else {
+            Write-Ok "PSReadLine config already present in profile"
+        }
         return
     }
 
@@ -237,7 +245,9 @@ function Set-PSReadLineConfig {
 $marker
 # Autosuggestions from history (equivalent of zsh-autosuggestions)
 Set-PSReadLineOption -PredictionSource History
-Set-PSReadLineOption -PredictionViewStyle ListView
+# InlineView: lightweight single-line ghost-text suggestion (ListView's
+# multi-line dropdown renders noticeably slower).
+Set-PSReadLineOption -PredictionViewStyle InlineView
 # Colorized tokens (equivalent of zsh-syntax-highlighting)
 Set-PSReadLineOption -Colors @{
     Command   = 'Green'

@@ -70,8 +70,10 @@ PowerShell. `install.ps1` sets up the closest equivalents instead:
   PATH — no admin rights or UAC prompt required either way.
 - [PSReadLine](https://learn.microsoft.com/powershell/module/psreadline/)
   configured with predictive IntelliSense (history-based autosuggestions —
-  the PowerShell analogue of `zsh-autosuggestions`) and colorized tokens
-  (the analogue of `zsh-syntax-highlighting`).
+  the PowerShell analogue of `zsh-autosuggestions`) using the lightweight
+  `InlineView` renderer, and colorized tokens (the analogue of
+  `zsh-syntax-highlighting`). Re-running the script upgrades older installs
+  that used the heavier `ListView` renderer.
 - [Terminal-Icons](https://github.com/devblackops/Terminal-Icons) for file
   and folder icons in `Get-ChildItem` output. The `windows` well-known folder
   icon is overridden from the default `nf-fa-windows` to `nf-custom-windows`
